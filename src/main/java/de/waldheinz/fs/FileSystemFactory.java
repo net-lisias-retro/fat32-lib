@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2009-2013 Matthias Treydte <mt@waldheinz.de>
- * 				 2018 Lisias T <support@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,10 +18,8 @@
  
 package de.waldheinz.fs;
 
-import net.lisias.fs.disk.atari.Tos;
-import net.lisias.fs.disk.msx.MsxDos;
-import net.lisias.fs.disk.pc.MsDos;
-
+import de.waldheinz.fs.disk.pc.MsDos;
+import de.waldheinz.fs.fat.FatFileSystem;
 import java.io.IOException;
 
 /**
@@ -51,13 +48,9 @@ public class FileSystemFactory {
     public static FileSystem create(final BlockDevice device, final boolean readOnly) throws IOException {
         try {    
         	return MsDos.read(device, readOnly);
-        } catch (IOException e0) { try {
-        	return MsxDos.read(device, readOnly);
-        } catch (IOException e1) { try {
-        	return Tos.read(device, readOnly);
-        } catch (IOException e2) { 
+        } catch (IOException e) { 
         	throw new IOException("Disk format not recognized!");
-        } } }
+    	}
     }
     
 }
