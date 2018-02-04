@@ -18,6 +18,8 @@
  
 package de.waldheinz.fs;
 
+import de.waldheinz.fs.disk.atari.Tos;
+import de.waldheinz.fs.disk.msx.MsxDos;
 import de.waldheinz.fs.disk.pc.MsDos;
 import de.waldheinz.fs.fat.FatFileSystem;
 import java.io.IOException;
@@ -48,9 +50,13 @@ public class FileSystemFactory {
     public static FileSystem create(final BlockDevice device, final boolean readOnly) throws IOException {
         try {    
         	return MsDos.read(device, readOnly);
-        } catch (IOException e) { 
+        } catch (IOException e0) { try {
+        	return MsxDos.read(device, readOnly);
+        } catch (IOException e1) { try {
+        	return Tos.read(device, readOnly);
+        } catch (IOException e2) { 
         	throw new IOException("Disk format not recognized!");
-    	}
+        } } }
     }
     
 }
