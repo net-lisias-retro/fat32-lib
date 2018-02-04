@@ -63,7 +63,7 @@ public final class FatLfnDirectory
     
     final AbstractDirectory dir;
     
-    FatLfnDirectory(AbstractDirectory dir, Fat fat, boolean readOnly)
+    public FatLfnDirectory(AbstractDirectory dir, Fat fat, boolean readOnly)
             throws IOException {
         
         super(readOnly);

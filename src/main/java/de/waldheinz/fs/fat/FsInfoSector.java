@@ -19,6 +19,8 @@
 package de.waldheinz.fs.fat;
 
 import de.waldheinz.fs.BlockDevice;
+import de.waldheinz.fs.fat.BootSector;
+
 import java.io.IOException;
 
 /**
@@ -27,7 +29,7 @@ import java.io.IOException;
  * @author Matthias Treydte &lt;waldheinz at gmail.com&gt;
  * @see http://en.wikipedia.org/wiki/File_Allocation_Table#FS_Information_Sector
  */
-final class FsInfoSector extends Sector {
+public final class FsInfoSector extends Sector {
 
     /**
      * The offset to the free cluster count value in the FS info sector.
@@ -58,9 +60,8 @@ final class FsInfoSector extends Sector {
      * @throws IOException on read error
      * @see Fat32BootSector#getFsInfoSectorNr() 
      */
-    public static FsInfoSector read(Fat32BootSector bs) throws IOException {
-        final FsInfoSector result =
-                new FsInfoSector(bs.getDevice(), offset(bs));
+    public static FsInfoSector read(final BootSector bs) throws IOException {
+        final FsInfoSector result = new FsInfoSector(bs.getDevice(), offset(bs));
         
         result.read();
         result.verify();
@@ -76,7 +77,7 @@ final class FsInfoSector extends Sector {
      * @throws IOException on write error
      * @see Fat32BootSector#getFsInfoSectorNr() 
      */
-    public static FsInfoSector create(Fat32BootSector bs) throws IOException {
+    public static FsInfoSector create(final BootSector bs) throws IOException {
         final int offset = offset(bs);
 
         if (offset == 0) throw new IOException(
@@ -90,7 +91,7 @@ final class FsInfoSector extends Sector {
         return result;
     }
 
-    private static int offset(Fat32BootSector bs) {
+    private static int offset(final BootSector bs) {
         return bs.getFsInfoSectorNr() * bs.getBytesPerSector();
     }
 

@@ -31,7 +31,7 @@ import java.util.List;
  * @author Ewout Prangsma &lt;epr at jnode.org&gt;
  * @author Matthias Treydte &lt;waldheinz at gmail.com&gt;
  */
-abstract class AbstractDirectory {
+public abstract class AbstractDirectory {
 
     /**
      * The maximum length of the volume label.

@@ -18,6 +18,7 @@
  
 package de.waldheinz.fs;
 
+import de.waldheinz.fs.disk.pc.MsDos;
 import de.waldheinz.fs.fat.FatFileSystem;
 import java.io.IOException;
 
@@ -44,10 +45,12 @@ public class FileSystemFactory {
      * @throws IOException on read error, or if the file system type could
      *      not be determined
      */
-    public static FileSystem create(BlockDevice device, boolean readOnly)
-            throws IOException {
-            
-        return FatFileSystem.read(device, readOnly);
+    public static FileSystem create(final BlockDevice device, final boolean readOnly) throws IOException {
+        try {    
+        	return MsDos.read(device, readOnly);
+        } catch (IOException e) { 
+        	throw new IOException("Disk format not recognized!");
+    	}
     }
     
 }

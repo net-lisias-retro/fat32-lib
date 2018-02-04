@@ -20,9 +20,8 @@
 package de.waldheinz.fs.fat;
 
 import de.waldheinz.fs.BlockDevice;
+
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /**
  * The boot sector.
@@ -30,7 +29,7 @@ import java.nio.ByteOrder;
  * @author Ewout Prangsma &lt;epr at jnode.org&gt;
  * @author Matthias Treydte &lt;waldheinz at gmail.com&gt;
  */
-abstract class BootSector extends Sector {
+public abstract class BootSector extends Sector {
 
     /**
      * Offset to the byte specifying the number of FATs.
@@ -41,9 +40,6 @@ abstract class BootSector extends Sector {
     public static final int FAT_COUNT_OFFSET = 16;
     public static final int RESERVED_SECTORS_OFFSET = 14;
     
-    public static final int TOTAL_SECTORS_16_OFFSET = 19;
-    public static final int TOTAL_SECTORS_32_OFFSET = 32;
-
     /**
      * The length of the file system type string.
      *
@@ -69,53 +65,6 @@ abstract class BootSector extends Sector {
     protected BootSector(BlockDevice device) {
         super(device, 0, SIZE);
         markDirty();
-    }
-    
-    public static BootSector read(BlockDevice device) throws IOException {
-        final ByteBuffer bb = ByteBuffer.allocate(512);
-        bb.order(ByteOrder.LITTLE_ENDIAN);
-        device.read(0, bb);
-        
-        if ((bb.get(510) & 0xff) != 0x55 ||
-                (bb.get(511) & 0xff) != 0xaa) throw new IOException(
-                "missing boot sector signature");
-                
-        final byte sectorsPerCluster = bb.get(SECTORS_PER_CLUSTER_OFFSET);
-
-        if (sectorsPerCluster <= 0) throw new IOException(
-                "suspicious sectors per cluster count " + sectorsPerCluster);
-                
-        final int rootDirEntries = bb.getShort(
-                Fat16BootSector.ROOT_DIR_ENTRIES_OFFSET);
-        final int rootDirSectors = ((rootDirEntries * 32) +
-                (device.getSectorSize() - 1)) / device.getSectorSize();
-
-        final int total16 =
-                bb.getShort(TOTAL_SECTORS_16_OFFSET) & 0xffff;
-        final long total32 =
-                bb.getInt(TOTAL_SECTORS_32_OFFSET) & 0xffffffffl;
-        
-        final long totalSectors = total16 == 0 ? total32 : total16;
-        
-        final int fatSz16 =
-                bb.getShort(Fat16BootSector.SECTORS_PER_FAT_OFFSET)  & 0xffff;
-        final long fatSz32 =
-                bb.getInt(Fat32BootSector.SECTORS_PER_FAT_OFFSET) & 0xffffffffl;
-                
-        final long fatSz = fatSz16 == 0 ? fatSz32 : fatSz16;
-        final int reservedSectors = bb.getShort(RESERVED_SECTORS_OFFSET);
-        final int fatCount = bb.get(FAT_COUNT_OFFSET);
-        final long dataSectors = totalSectors - (reservedSectors +
-                (fatCount * fatSz) + rootDirSectors);
-                
-        final long clusterCount = dataSectors / sectorsPerCluster;
-        
-        final BootSector result =
-                (clusterCount > Fat16BootSector.MAX_FAT16_CLUSTERS) ?
-            new Fat32BootSector(device) : new Fat16BootSector(device);
-            
-        result.read();
-        return result;
     }
     
     public abstract FatType getFatType();
@@ -426,34 +375,6 @@ abstract class BootSector extends Sector {
     }
     
     /**
-     * Gets the number of logical sectors
-     * 
-     * @return int
-     */
-    protected int getNrLogicalSectors() {
-        return get16(TOTAL_SECTORS_16_OFFSET);
-    }
-    
-    /**
-     * Sets the number of logical sectors
-     * 
-     * @param v the new number of logical sectors
-     */
-    protected void setNrLogicalSectors(int v) {
-        if (v == getNrLogicalSectors()) return;
-        
-        set16(TOTAL_SECTORS_16_OFFSET, v);
-    }
-    
-    protected void setNrTotalSectors(long v) {
-        set32(TOTAL_SECTORS_32_OFFSET, v);
-    }
-    
-    protected long getNrTotalSectors() {
-        return get32(TOTAL_SECTORS_32_OFFSET);
-    }
-    
-    /**
      * Gets the medium descriptor byte
      * 
      * @return int
@@ -560,7 +481,7 @@ abstract class BootSector extends Sector {
         res.append(getNrHiddenSectors());
         res.append('\n');
         res.append("Nr logical sectors = ");
-        res.append(getNrLogicalSectors());
+        res.append(getSectorCount());
         res.append('\n');
         res.append("Nr reserved sector = ");
         res.append(getNrReservedSectors());
@@ -568,5 +489,10 @@ abstract class BootSector extends Sector {
         
         return res.toString();
     }
-    
+
+	public abstract void setRootDirFirstCluster(final long startCluster);
+	public abstract int getFsInfoSectorNr();
+	public abstract long getRootDirFirstCluster();
+	public abstract String getVolumeLabel();
+	public abstract void setVolumeLabel(String label);
 }

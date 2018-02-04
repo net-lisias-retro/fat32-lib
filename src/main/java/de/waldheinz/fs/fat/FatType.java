@@ -148,7 +148,7 @@ public enum FatType {
      *
      * @return the boot sector label for this FAT type
      */
-    String getLabel() {
+    public String getLabel() {
         return this.label;
     }
 

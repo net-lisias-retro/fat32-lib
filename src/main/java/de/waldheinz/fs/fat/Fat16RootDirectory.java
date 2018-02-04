@@ -19,6 +19,8 @@
 package de.waldheinz.fs.fat;
 
 import de.waldheinz.fs.BlockDevice;
+import de.waldheinz.fs.fat.BootSector;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -27,11 +29,11 @@ import java.nio.ByteBuffer;
  *
  * @author Matthias Treydte &lt;waldheinz at gmail.com&gt;
  */
-final class Fat16RootDirectory extends AbstractDirectory {
+public final class Fat16RootDirectory extends AbstractDirectory {
     private final BlockDevice device;
     private final long deviceOffset;
 
-    private Fat16RootDirectory(Fat16BootSector bs, boolean readOnly) {
+    private Fat16RootDirectory(final BootSector bs, final boolean readOnly) {
         super(bs.getFatType(), bs.getRootDirEntryCount(), readOnly, true);
 
         if (bs.getRootDirEntryCount() <= 0) throw new IllegalArgumentException(
@@ -50,8 +52,7 @@ final class Fat16RootDirectory extends AbstractDirectory {
      * @return the directory that was read
      * @throws IOException on read error
      */
-    public static Fat16RootDirectory read(
-            Fat16BootSector bs, boolean readOnly) throws IOException {
+    public static Fat16RootDirectory read(final BootSector bs, final boolean readOnly) throws IOException {
         
         final Fat16RootDirectory result = new Fat16RootDirectory(bs, readOnly);
         result.read();
@@ -67,8 +68,7 @@ final class Fat16RootDirectory extends AbstractDirectory {
      * @return the directory that was created
      * @throws IOException on write error
      */
-    public static Fat16RootDirectory create(
-            Fat16BootSector bs) throws IOException {
+    public static Fat16RootDirectory create(final BootSector bs) throws IOException {
         
         final Fat16RootDirectory result = new Fat16RootDirectory(bs, false);
         result.flush();

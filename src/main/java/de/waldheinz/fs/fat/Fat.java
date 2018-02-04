@@ -20,6 +20,7 @@
 package de.waldheinz.fs.fat;
 
 import de.waldheinz.fs.BlockDevice;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -30,7 +31,7 @@ import java.util.Arrays;
  * @author Ewout Prangsma &lt;epr at jnode.org&gt;
  * @author Matthias Treydte &lt;waldheinz at gmail.com&gt;
  */
-final class Fat {
+public final class Fat {
 
     /**
      * The first cluster that really holds user data in a FAT.

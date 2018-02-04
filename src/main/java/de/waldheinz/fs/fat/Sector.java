@@ -126,4 +126,8 @@ class Sector {
     protected long getOffset() {
         return this.offset;
     }
+    
+    protected int getSize() {
+    	return this.buffer.capacity();
+    }
 }

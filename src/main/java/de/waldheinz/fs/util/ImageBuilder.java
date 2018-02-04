@@ -1,12 +1,13 @@
 
 package de.waldheinz.fs.util;
 
+import de.waldheinz.fs.disk.SuperFloppyFormatter;
 import de.waldheinz.fs.fat.FatFile;
 import de.waldheinz.fs.fat.FatFileSystem;
 import de.waldheinz.fs.fat.FatLfnDirectory;
 import de.waldheinz.fs.fat.FatLfnDirectoryEntry;
 import de.waldheinz.fs.fat.FatType;
-import de.waldheinz.fs.fat.SuperFloppyFormatter;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -62,10 +63,9 @@ public final class ImageBuilder {
         this.buffer = ByteBuffer.allocate(1024 * 1024);
     }
     
-    public void createDiskImage(File outFile) throws IOException {
+    public void createDiskImage(final File outFile, final String label) throws IOException {
         final FileDisk fd = FileDisk.create(outFile, 8l * 1024 * 1024 * 1024);
-        final FatFileSystem fs = SuperFloppyFormatter
-                .get(fd).setFatType(FatType.FAT32).setVolumeLabel("huhu").format();
+        final FatFileSystem fs = SuperFloppyFormatter.get(SuperFloppyFormatter.eSystem.pc, fd).setFatType(FatType.FAT32).setVolumeLabel(label).format();
         
         try {
             this.copyRec(this.imageRoot, fs.getRoot());
@@ -94,7 +94,7 @@ public final class ImageBuilder {
     public static void main(String[] args) throws IOException {
         ImageBuilder
                 .of(new File("/home/trem/Downloads/"))
-                .createDiskImage(new File("/mnt/archiv/trem/dl.img"));
+                .createDiskImage(new File("/mnt/archiv/trem/dl.img"), "huhu");
     }
     
 }

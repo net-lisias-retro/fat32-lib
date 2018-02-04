@@ -23,6 +23,7 @@ import de.waldheinz.fs.AbstractFileSystem;
 import de.waldheinz.fs.BlockDevice;
 import java.io.IOException;
 import de.waldheinz.fs.ReadOnlyException;
+import de.waldheinz.fs.disk.SuperFloppyFormatter;
 
 /**
  * <p>
@@ -37,19 +38,18 @@ import de.waldheinz.fs.ReadOnlyException;
  * @author Ewout Prangsma &lt;epr at jnode.org&gt;
  * @author Matthias Treydte &lt;waldheinz at gmail.com&gt;
  */
-public final class FatFileSystem extends AbstractFileSystem {
+public abstract class FatFileSystem extends AbstractFileSystem {
     
+    protected final BootSector bs;
     private final Fat fat;
     private final FsInfoSector fsiSector;
-    private final BootSector bs;
     private final FatLfnDirectory rootDir;
     private final AbstractDirectory rootDirStore;
     private final FatType fatType;
     private final long filesOffset;
 
-    FatFileSystem(BlockDevice api, boolean readOnly) throws IOException {
-
-        this(api, readOnly, false);
+    protected FatFileSystem(final BlockDevice device, final BootSector bs, final boolean readOnly) throws IOException {
+        this(device, bs, readOnly, false);
     }
     
     /**
@@ -60,13 +60,13 @@ public final class FatFileSystem extends AbstractFileSystem {
      * @param ignoreFatDifferences
      * @throws IOException on read error
      */
-    private FatFileSystem(BlockDevice device, boolean readOnly,
-            boolean ignoreFatDifferences)
+    private FatFileSystem(final BlockDevice device, final BootSector bs, final boolean readOnly, final boolean ignoreFatDifferences)
             throws IOException {
         
         super(readOnly);
         
-        this.bs = BootSector.read(device);
+        this.bs = bs;
+        this.bs.read();
         
         if (bs.getNrFats() <= 0) throw new IOException(
                 "boot sector says there are no FATs");
@@ -85,11 +85,9 @@ public final class FatFileSystem extends AbstractFileSystem {
         }
         
         if (fatType == FatType.FAT32) {
-            final Fat32BootSector f32bs = (Fat32BootSector) bs;
-            final ClusterChain rootChain = new ClusterChain(fat,
-                    f32bs.getRootDirFirstCluster(), isReadOnly());
+            final ClusterChain rootChain = new ClusterChain(fat, bs.getRootDirFirstCluster(), isReadOnly());
             this.rootDirStore = ClusterChainDirectory.readRoot(rootChain);
-            this.fsiSector = FsInfoSector.read(f32bs);
+            this.fsiSector = FsInfoSector.read(bs);
             
             if (fsiSector.getFreeClusterCount() < fat.getFreeClusterCount()) {
                 throw new IOException("free cluster count mismatch - fat: " +
@@ -97,30 +95,12 @@ public final class FatFileSystem extends AbstractFileSystem {
                         fsiSector.getFreeClusterCount());
             }
         } else {
-            this.rootDirStore =
-                    Fat16RootDirectory.read((Fat16BootSector) bs,readOnly);
+            this.rootDirStore = Fat16RootDirectory.read(bs,readOnly);
             this.fsiSector = null;
         }
 
         this.rootDir = new FatLfnDirectory(rootDirStore, fat, isReadOnly());
             
-    }
-
-    /**
-     * Reads the file system structure from the specified {@code BlockDevice}
-     * and returns a fresh {@code FatFileSystem} instance to read or modify
-     * it.
-     *
-     * @param device the {@code BlockDevice} holding the file system
-     * @param readOnly if the {@code FatFileSystem} should be in read-only mode
-     * @return the {@code FatFileSystem} instance for the device
-     * @throws IOException on read error or if the file system structure could
-     *      not be parsed
-     */
-    public static FatFileSystem read(BlockDevice device, boolean readOnly)
-            throws IOException {
-        
-        return new FatFileSystem(device, readOnly);
     }
 
     long getFilesOffset() {
@@ -151,7 +131,7 @@ public final class FatFileSystem extends AbstractFileSystem {
         final String fromDir = rootDirStore.getLabel();
         
         if (fromDir == null && fatType != FatType.FAT32) {
-            return ((Fat16BootSector)bs).getVolumeLabel();
+            return bs.getVolumeLabel();
         } else {
             return fromDir;
         }
@@ -173,7 +153,7 @@ public final class FatFileSystem extends AbstractFileSystem {
         rootDirStore.setLabel(label);
         
         if (fatType != FatType.FAT32) {
-            ((Fat16BootSector)bs).setVolumeLabel(label);
+            bs.setVolumeLabel(label);
         }
     }
 
@@ -258,7 +238,7 @@ public final class FatFileSystem extends AbstractFileSystem {
         checkClosed();
 
         if (fatType == FatType.FAT32) {
-            return bs.getNrTotalSectors() * bs.getBytesPerSector();
+            return bs.getSectorCount() * bs.getBytesPerSector();
         }
 
         return -1;

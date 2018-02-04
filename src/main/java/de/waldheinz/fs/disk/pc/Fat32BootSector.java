@@ -16,10 +16,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-package de.waldheinz.fs.fat;
+package de.waldheinz.fs.disk.pc;
 
 import de.waldheinz.fs.BlockDevice;
+import de.waldheinz.fs.fat.BootSector;
+import de.waldheinz.fs.fat.FatType;
+
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * Contains the FAT32 specific parts of the boot sector.
@@ -32,7 +37,9 @@ final class Fat32BootSector extends BootSector {
      * The offset to the entry specifying the first cluster of the FAT32
      * root directory.
      */
-    public final static int ROOT_DIR_FIRST_CLUSTER_OFFSET = 0x2c;
+    public static final int ROOT_DIR_FIRST_CLUSTER_OFFSET = 0x2c;
+
+    public static final int TOTAL_SECTORS_32_OFFSET = 32;
 
     /**
      * The offset to the 4 bytes specifying the sectors per FAT value.
@@ -56,6 +63,42 @@ final class Fat32BootSector extends BootSector {
      */
     public Fat32BootSector(BlockDevice device) throws IOException {
         super(device);
+        
+        final ByteBuffer bb = ByteBuffer.allocate(512);
+        bb.order(ByteOrder.LITTLE_ENDIAN);
+        device.read(0, bb);
+        
+        if ((bb.get(510) & 0xff) != 0x55 || (bb.get(511) & 0xff) != 0xaa) 
+        	throw new IOException("missing boot sector signature");
+                
+        final byte sectorsPerCluster = bb.get(SECTORS_PER_CLUSTER_OFFSET);
+
+        if (sectorsPerCluster <= 0) throw new IOException("suspicious sectors per cluster count " + sectorsPerCluster);
+                
+        final int rootDirEntries = bb.getShort(Fat16BootSector.ROOT_DIR_ENTRIES_OFFSET);
+        final int rootDirSectors = ((rootDirEntries * 32) + (device.getSectorSize() - 1)) / device.getSectorSize();
+
+        final long total16 = (bb.getShort(Fat16BootSector.TOTAL_SECTORS_16_OFFSET) & 0xffff);
+        if (0 != total16)
+        	throw new IOException("This is a FAT16!");
+        
+        final long totalSectors = bb.getInt(TOTAL_SECTORS_32_OFFSET) & 0xffffffffl;
+        if (0 == totalSectors)
+        	throw new IOException("Total sectors is zero. Not a FAT32!");
+        
+        final int fatSz16 = bb.getShort(Fat16BootSector.SECTORS_PER_FAT_OFFSET)  & 0xffff;
+        if (0 != fatSz16)
+        	throw new IOException("This is a FAT16!");
+        
+        final long fatSz = bb.getInt(Fat32BootSector.SECTORS_PER_FAT_OFFSET) & 0xffffffffl;
+        if (0 == fatSz)
+        	throw new IOException("FAT size is zero. Not a FAT32!");
+                
+        final int reservedSectors = bb.getShort(RESERVED_SECTORS_OFFSET);
+        final int fatCount = bb.get(FAT_COUNT_OFFSET);
+        final long dataSectors = totalSectors - (reservedSectors + (fatCount * fatSz) + rootDirSectors);
+                
+        final long clusterCount = dataSectors / sectorsPerCluster;
     }
     
     @Override
@@ -72,6 +115,7 @@ final class Fat32BootSector extends BootSector {
      *
      * @return the root directory's first cluster
      */
+    @Override
     public long getRootDirFirstCluster() {
         return get32(ROOT_DIR_FIRST_CLUSTER_OFFSET);
     }
@@ -81,7 +125,8 @@ final class Fat32BootSector extends BootSector {
      *
      * @param value the root directory's first cluster
      */
-    public void setRootDirFirstCluster(long value) {
+    @Override
+    public void setRootDirFirstCluster(final long value) {
         if (getRootDirFirstCluster() == value) return;
         
         set32(ROOT_DIR_FIRST_CLUSTER_OFFSET, value);
@@ -115,6 +160,7 @@ final class Fat32BootSector extends BootSector {
      *
      * @param label the new volume label, may be {@code null}
      */
+    @Override
     public void setVolumeLabel(String label) {
         for (int i=0; i < 11; i++) {
             final byte c =
@@ -125,6 +171,7 @@ final class Fat32BootSector extends BootSector {
         }
     }
 
+    @Override
     public int getFsInfoSectorNr() {
         return get16(FS_INFO_SECTOR_OFFSET);
     }
@@ -154,12 +201,12 @@ final class Fat32BootSector extends BootSector {
 
     @Override
     public void setSectorCount(long count) {
-        super.setNrTotalSectors(count);
+        this.setNrTotalSectors(count);
     }
 
     @Override
     public long getSectorCount() {
-        return super.getNrTotalSectors();
+        return this.getNrTotalSectors();
     }
 
     /**
@@ -206,4 +253,37 @@ final class Fat32BootSector extends BootSector {
     public int getExtendedBootSignatureOffset() {
         return EXTENDED_BOOT_SIGNATURE_OFFSET;
     }
+    
+    /**
+     * Gets the number of logical sectors
+     * 
+     * @return int
+     */
+    protected int getNrLogicalSectors() {
+        return get16(TOTAL_SECTORS_32_OFFSET);
+    }
+    
+    /**
+     * Sets the number of logical sectors
+     * 
+     * @param v the new number of logical sectors
+     */
+    protected void setNrLogicalSectors(int v) {
+        if (v == getNrLogicalSectors()) return;
+        
+        set16(TOTAL_SECTORS_32_OFFSET, v);
+    }
+    
+    protected void setNrTotalSectors(long v) {
+        set32(TOTAL_SECTORS_32_OFFSET, v);
+    }
+    
+    protected long getNrTotalSectors() {
+        return get32(TOTAL_SECTORS_32_OFFSET);
+    }
+
+	@Override
+	public String getVolumeLabel() {
+		throw new RuntimeException("Invalid Call");
+	}
 }

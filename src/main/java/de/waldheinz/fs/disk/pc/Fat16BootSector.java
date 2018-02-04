@@ -16,10 +16,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-package de.waldheinz.fs.fat;
+package de.waldheinz.fs.disk.pc;
 
 import de.waldheinz.fs.BlockDevice;
+import de.waldheinz.fs.fat.BootSector;
+import de.waldheinz.fs.fat.FatType;
+
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * The boot sector layout as used by the FAT12 / FAT16 variants.
@@ -52,6 +57,8 @@ final class Fat16BootSector extends BootSector {
     public static final int MAX_FAT12_CLUSTERS = 4084;
 
     public static final int MAX_FAT16_CLUSTERS = 65524;
+
+    public static final int TOTAL_SECTORS_16_OFFSET = 19;
 
     /**
      * The offset to the sectors per FAT value.
@@ -89,9 +96,40 @@ final class Fat16BootSector extends BootSector {
      * Creates a new {@code Fat16BootSector} for the specified device.
      *
      * @param device the {@code BlockDevice} holding the boot sector
+     * @throws IOException 
      */
-    public Fat16BootSector(BlockDevice device) {
+    public Fat16BootSector(BlockDevice device) throws IOException {
         super(device);
+        
+        final ByteBuffer bb = ByteBuffer.allocate(SIZE);
+        bb.order(ByteOrder.LITTLE_ENDIAN);
+        device.read(0, bb);
+        
+        if ((bb.get(510) & 0xff) != 0x55 || (bb.get(511) & 0xff) != 0xaa) 
+        	throw new IOException("missing boot sector signature");
+                
+        final byte sectorsPerCluster = bb.get(SECTORS_PER_CLUSTER_OFFSET);
+
+        if (sectorsPerCluster <= 0) throw new IOException("suspicious sectors per cluster count " + sectorsPerCluster);
+                
+        final int rootDirEntries = bb.getShort(Fat16BootSector.ROOT_DIR_ENTRIES_OFFSET);
+        final int rootDirSectors = ((rootDirEntries * 32) + (device.getSectorSize() - 1)) / device.getSectorSize();
+
+        final long totalSectors = (bb.getShort(TOTAL_SECTORS_16_OFFSET) & 0xffff);
+        if (0 == totalSectors)
+        	throw new IOException("Total sectors is zero. Not a FAT16!");
+        
+        final int fatSz = bb.getShort(SECTORS_PER_FAT_OFFSET)  & 0xffff;
+        if (0 == fatSz)
+        	throw new IOException("FAT size is zero. Not a FAT16!");
+                
+        final int reservedSectors = bb.getShort(RESERVED_SECTORS_OFFSET);
+        final int fatCount = bb.get(FAT_COUNT_OFFSET);
+        final long dataSectors = totalSectors - (reservedSectors + (fatCount * fatSz) + rootDirSectors);
+                
+        final long clusterCount = dataSectors / sectorsPerCluster;
+        if (clusterCount > MAX_FAT16_CLUSTERS)
+        	throw new IOException("Cluster count too big. Not a FAT16!");
     }
     
     /**
@@ -99,6 +137,7 @@ final class Fat16BootSector extends BootSector {
      *
      * @return the volume label
      */
+    @Override
     public String getVolumeLabel() {
         final StringBuilder sb = new StringBuilder();
 
@@ -122,6 +161,7 @@ final class Fat16BootSector extends BootSector {
      * @throws IllegalArgumentException if the specified label is longer
      *      than {@link #MAX_VOLUME_LABEL_LENGTH}
      */
+    @Override
     public void setVolumeLabel(String label) throws IllegalArgumentException {
         if (label.length() > MAX_VOLUME_LABEL_LENGTH)
             throw new IllegalArgumentException("volume label too long");
@@ -230,4 +270,46 @@ final class Fat16BootSector extends BootSector {
         return EXTENDED_BOOT_SIGNATURE_OFFSET;
     }
     
+    /**
+     * Gets the number of logical sectors
+     * 
+     * @return int
+     */
+    protected int getNrLogicalSectors() {
+        return get16(TOTAL_SECTORS_16_OFFSET);
+    }
+    
+    /**
+     * Sets the number of logical sectors
+     * 
+     * @param v the new number of logical sectors
+     */
+    protected void setNrLogicalSectors(int v) {
+        if (v == getNrLogicalSectors()) return;
+        
+        set16(TOTAL_SECTORS_16_OFFSET, v);
+    }
+    
+    protected void setNrTotalSectors(long v) {
+        set32(TOTAL_SECTORS_16_OFFSET, v);
+    }
+    
+    protected long getNrTotalSectors() {
+        return get32(TOTAL_SECTORS_16_OFFSET);
+    }
+
+	@Override
+	public void setRootDirFirstCluster(final long startCluster) {
+		throw new RuntimeException("Invalid Call");
+	}
+
+	@Override
+	public int getFsInfoSectorNr() {
+		throw new RuntimeException("Invalid Call");
+	}
+
+	@Override
+	public long getRootDirFirstCluster() {
+		throw new RuntimeException("Invalid Call");
+	}
 }

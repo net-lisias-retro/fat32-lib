@@ -16,9 +16,20 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-package de.waldheinz.fs.fat;
+package de.waldheinz.fs.disk.pc;
 
 import de.waldheinz.fs.BlockDevice;
+import de.waldheinz.fs.disk.SuperFloppyFormatter;
+import de.waldheinz.fs.fat.AbstractDirectory;
+import de.waldheinz.fs.fat.BootSector;
+import de.waldheinz.fs.fat.ClusterChainDirectory;
+import de.waldheinz.fs.fat.Fat;
+import de.waldheinz.fs.fat.Fat16RootDirectory;
+import de.waldheinz.fs.fat.FatFileSystem;
+import de.waldheinz.fs.fat.FatLfnDirectory;
+import de.waldheinz.fs.fat.FatType;
+import de.waldheinz.fs.fat.FsInfoSector;
+
 import java.io.IOException;
 import java.util.Random;
 
@@ -39,7 +50,7 @@ import java.util.Random;
  *
  * @author Matthias Treydte &lt;matthias.treydte at meetwise.com&gt;
  */
-public final class SuperFloppyFormatter {
+public final class FloppyFormatter extends SuperFloppyFormatter {
 
     /**
      * The media descriptor used (hard disk).
@@ -95,23 +106,11 @@ public final class SuperFloppyFormatter {
      * @param device
      * @throws IOException on error accessing the specified {@code device}
      */
-    private SuperFloppyFormatter(BlockDevice device) throws IOException {
+    public FloppyFormatter(final BlockDevice device) throws IOException {
         this.device = device;
         this.oemName = DEFAULT_OEM_NAME;
         this.fatCount = DEFAULT_FAT_COUNT;
         setFatType(fatTypeFromDevice());
-    }
-    
-    /**
-     * Retruns a {@code SuperFloppyFormatter} instance suitable for formatting
-     * the specified device.
-     *
-     * @param dev the device that should be formatted
-     * @return the formatter for the device
-     * @throws IOException on error creating the formatter
-     */
-    public static SuperFloppyFormatter get(BlockDevice dev) throws IOException {
-        return new SuperFloppyFormatter(dev);
     }
     
     /**
@@ -146,7 +145,8 @@ public final class SuperFloppyFormatter {
      * @return this {@code SuperFloppyFormatter}
      * @see FatFileSystem#setVolumeLabel(java.lang.String)
      */
-    public SuperFloppyFormatter setVolumeLabel(String label) {
+    @Override
+    public SuperFloppyFormatter setVolumeLabel(final String label) {
         this.label = label;
         return this;
     }
@@ -182,6 +182,7 @@ public final class SuperFloppyFormatter {
      * @return the file system that was created
      * @throws IOException on write error
      */
+    @Override
     public FatFileSystem format() throws IOException {
         final int sectorSize = device.getSectorSize();
         final int totalSectors = (int)(device.getSize() / sectorSize);
@@ -250,7 +251,7 @@ public final class SuperFloppyFormatter {
             f32bs.writeCopy(device);
         }
         
-        FatFileSystem fs = FatFileSystem.read(device, false);
+        FatFileSystem fs = MsDos.read(device, false);
 
         if (label != null) {
             fs.setVolumeLabel(label);
@@ -316,7 +317,8 @@ public final class SuperFloppyFormatter {
      * @throws IllegalArgumentException if {@code fatType} does not support the
      *      size of the device
      */
-    public SuperFloppyFormatter setFatType(FatType fatType)
+    @Override
+    public FloppyFormatter setFatType(final FatType fatType)
             throws IOException, IllegalArgumentException {
         
         if (fatType == null) throw new NullPointerException();

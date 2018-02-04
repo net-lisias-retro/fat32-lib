@@ -28,7 +28,7 @@ import java.nio.ByteBuffer;
  * @author Ewout Prangsma &lt;epr at jnode.org&gt;
  * @author Matthias Treydte &lt;waldheinz at gmail.com&gt;
  */
-class ClusterChainDirectory extends AbstractDirectory {
+public class ClusterChainDirectory extends AbstractDirectory {
 
     /**
      * According to the FAT specification, this is the maximum size a FAT
@@ -68,18 +68,16 @@ class ClusterChainDirectory extends AbstractDirectory {
     public static ClusterChainDirectory createRoot(Fat fat) throws IOException {
 
         if (fat.getFatType() != FatType.FAT32) {
-            throw new IllegalArgumentException(
-                    "only FAT32 stores root directory in a cluster chain");
+            throw new IllegalArgumentException("only FAT32 stores root directory in a cluster chain");
         }
 
-        final Fat32BootSector bs = (Fat32BootSector) fat.getBootSector();
+        final BootSector bs = fat.getBootSector();
         final ClusterChain cc = new ClusterChain(fat, false);
         cc.setChainLength(1);
         
         bs.setRootDirFirstCluster(cc.getStartCluster());
         
-        final ClusterChainDirectory result =
-                new ClusterChainDirectory(cc, true);
+        final ClusterChainDirectory result = new ClusterChainDirectory(cc, true);
         
         result.flush();
         return result;
