@@ -57,7 +57,7 @@ public class Fat16BootSector extends BootSector {
      * @see #getRootDirEntryCount()
      * @see #setRootDirEntryCount(int) 
      */
-    public static final int DEFAULT_ROOT_DIR_ENTRY_COUNT = 512;
+    public static final int DEFAULT_ROOT_DIR_ENTRY_COUNT = 512; // FIXME: Should be 112 or 64 for floppies!!
 
     /**
      * The default volume label.
@@ -136,6 +136,9 @@ public class Fat16BootSector extends BootSector {
 
         setRootDirEntryCount(DEFAULT_ROOT_DIR_ENTRY_COUNT);
         setVolumeLabel(DEFAULT_VOLUME_LABEL);
+
+        // Halts Everything. I need to fix the root dir entries count for floppies!
+        throw new IOException("Not fixed yet!");
     }
 
     /**
