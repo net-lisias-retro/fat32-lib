@@ -111,9 +111,8 @@ public final class Fat32BootSector extends BootSector {
          * sector. these are x86 jump instructions which lead into
          * nirvana when executed, but we're currently unable to produce really
          * bootable images anyway. So... */
-        set8(0x00, 0xeb);
-        set8(0x01, 0x3c);
-        set8(0x02, 0x90);
+        set8(OFFSET.BRANCH_S, 0xeb);
+        set16(1 + OFFSET.BRANCH_S.offset(), 0x903c);
 
         set16(OFFSET_EXT.VERSION, VERSION);
         setBootSectorCopySector(6); /* as suggested by M$ */

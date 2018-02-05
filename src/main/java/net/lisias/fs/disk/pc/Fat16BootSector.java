@@ -34,8 +34,9 @@ import java.nio.ByteBuffer;
 public class Fat16BootSector extends BootSector {
 
 	public enum OFFSET_EXT implements BootSector.Offset {
-		VOLUME_LABEL(0x2b),				// (MAX_VOLUME_LABEL_LENGTH) chars
 		EXTENDED_BOOT_SIGNATURE(0x26),	// ???
+		SERIAL_NUMBER(0x27),			// Random generated 32bits number
+		VOLUME_LABEL(0x2b),				// (MAX_VOLUME_LABEL_LENGTH) chars
 		FILE_SYSTEM_TYPE(0x36),			// ???
 		;
 			
@@ -130,12 +131,13 @@ public class Fat16BootSector extends BootSector {
          * sector. these are x86 jump instructions which lead into
          * nirvana when executed, but we're currently unable to produce really
          * bootable images anyway. So... */
-        set8(0x00, 0xeb);
-        set8(0x01, 0x3c);
-        set8(0x02, 0x90);
+        set8(OFFSET.BRANCH_S, 0xeb);
+        set16(1 + OFFSET.BRANCH_S.offset(), 0x903c);
 
         setRootDirEntryCount(DEFAULT_ROOT_DIR_ENTRY_COUNT);
         setVolumeLabel(DEFAULT_VOLUME_LABEL);
+        
+        set32(OFFSET_EXT.SERIAL_NUMBER, random.nextLong() & 0xffffffff);
 
         // Halts Everything. I need to fix the root dir entries count for floppies!
         throw new IOException("Not fixed yet!");
