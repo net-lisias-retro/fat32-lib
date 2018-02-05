@@ -22,11 +22,16 @@ import java.io.IOException;
 
 import de.waldheinz.fs.BlockDevice;
 import de.waldheinz.fs.FileSystem;
+import de.waldheinz.fs.fat.BootSector;
 
-public class Tos {
+public class Tos extends de.waldheinz.fs.fat.FatFileSystem {
 
-    public static FileSystem read(final BlockDevice device, final boolean readOnly) throws IOException {
-    	throw new IOException("Not Implemented yet!");
+	Tos(final BlockDevice device, final BootSector bs, final boolean readOnly) throws IOException {
+		super(device, bs, readOnly);
+	}
+
+	public static FileSystem read(final BlockDevice device, final boolean readOnly) throws IOException {
+    	return new Tos(device, new TosBootSector(device), readOnly);
     }
 
 }
