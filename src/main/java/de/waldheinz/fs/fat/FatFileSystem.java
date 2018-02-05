@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2003-2009 JNode.org
  *               2009-2013 Matthias Treydte <mt@waldheinz.de>
+ * 				 2018 Lisias T <support@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,7 +24,7 @@ import de.waldheinz.fs.AbstractFileSystem;
 import de.waldheinz.fs.BlockDevice;
 import java.io.IOException;
 import de.waldheinz.fs.ReadOnlyException;
-import de.waldheinz.fs.disk.SuperFloppyFormatter;
+import net.lisias.fs.disk.SuperFloppyFormatter;
 
 /**
  * <p>

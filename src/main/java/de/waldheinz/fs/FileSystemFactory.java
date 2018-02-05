@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2009-2013 Matthias Treydte <mt@waldheinz.de>
+ * 				 2018 Lisias T <support@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -18,10 +19,10 @@
  
 package de.waldheinz.fs;
 
-import de.waldheinz.fs.disk.atari.Tos;
-import de.waldheinz.fs.disk.msx.MsxDos;
-import de.waldheinz.fs.disk.pc.MsDos;
-import de.waldheinz.fs.fat.FatFileSystem;
+import net.lisias.fs.disk.atari.Tos;
+import net.lisias.fs.disk.msx.MsxDos;
+import net.lisias.fs.disk.pc.MsDos;
+
 import java.io.IOException;
 
 /**
