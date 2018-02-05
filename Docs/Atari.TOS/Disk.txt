@@ -1,0 +1,351 @@
+
+                          Disk strukture: Page:7
+
+                             The Disk Doctor
+
+
+    The ST Disk Structure:
+
+       sector 0 is the boot track
+       sectors 1 through 5 are the first copy
+           of the File Allocation Table (FAT)
+       sectors 6 through 10 are the second FAT copy
+       sectors 11 through 17 are the directory
+       the remainder of the disk is data space.
+
+         On floppies, the boot track is 1 sector long, each FAT is 5
+    sectors, the directory is 7 sectors. On a single-sided disk, this
+    theoretically leaves 702 sectors for data, but the operating
+    system seems to count somewhat less: when a disk is formatted, it
+    shows only 698 sectors available. Double-sided floppies also have
+    1 sector boot tracks, On at least one hard disk, the boot track is
+    again 1 sector long, each FAT is 41 sectors and the root directory
+    (the main directory or desktop) is 16 sectors. Other hard disk
+    structures may vary.
+
+
+    DIRECTORY STRUCTURE
+
+         The root or main directory is in the seven consecutive
+    sectors mentioned above. A subdirectory (a folder or path) is
+    actually a file on the disk. While the root directory is limited
+    in the maximum number of files it can take, since files need not
+    be contiguous, a subdirectory is not thus limited.
+
+
+         Each directory entry is 32 bytes long: there are 16 entries
+    per sector, laid out so:
+
+
+         file name          bytes 0-7
+         extension          bytes 8-10
+         attributes         byte 11
+         reserved space     bytes 12-21
+         time stamp         bytes 22-23
+         date stamp         bytes 24-25
+         starting cluster   bytes 26-27 (an integer)
+         length (bytes)     bytes 28-31 (a 4-byte integer)
+
+         File name is the part of the name before the period, eight
+    bytes padded on the right with blanks if less than that in length.
+    If the first byte in a name is zero, the entry is unused. If $E5
+    (229 decimal), then the file has been erased. If the first byte is
+    a period, ($2E), then the entry is a special type of subdirectory.
+    Extension is the remainder of the file name; three bytes, again
+    padded with blanks. Reserved bytes are usually all zero.
+
+
+
+
+
+
+
+                          Disk structure: Page 8
+
+
+
+
+                             The Disk Doctor
+
+
+         Attributes describe how the files are treated by the system.
+    If the bit is zero, the attribute is off, if one it is on (used):
+
+
+            bit 0 means the file is read only
+            bit 1 means the file is hidden
+            bit 2 means it is a system file
+            bit 3 means it is a volume label, not a file
+            bit 4 means it is a subdirectory
+            bit 5 is an archive bit
+            bits 6 and 7 are unused at present
+
+         A read-only file cannot be written to or deleted. Hidden and
+    system files are normally not seen in the directory listing but
+    you can see these files by viewing the directory from the repair
+    menu. The volume label is the disk name usually entered at format
+    time. It normally only appears in the root directory.
+
+
+         The subdirectory attribute says this is a folder (path)
+    rather than a file, although they are stored in the same manner. A
+    subdirectory is structured in the same manner as a root directory
+    except that has no fixed size and can grow as large as necessary.
+
+
+         The archive bit is set if a file has been changed since its
+    last backup. Used normally only with hard disks. Attributes are
+    marked on the disk information screen by a single letter. If an
+    'x' appears below that letter, then the attribute is set.
+
+
+         The time and date stamps record the last change of a file.
+
+
+    time stamp:
+            bits 0-4 are seconds/2 (0 - 29)
+            bits 5-10 are minutes (0 - 59)
+            bits 11-15 are hours (0 - 23)
+
+    date stamp:
+            bits 0-4 are the date (1-31)
+            bits 5-8 are the month (1-12)
+            bits 9-15 are the year (add 1980 to get the correct
+    value)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          Disk structure: Page 9
+
+
+
+
+                             The Disk Doctor
+
+
+         Starting cluster is an Intel 8088 format integer: that is,
+    its bytes are swapped. That is, the low byte comes before the high
+    byte. It is simply the cluster number where the file begins (there
+    are two sectors in each cluster). For where the file goes after
+    that, see the FAT. File Length is an Intel 8088 format longint:
+    that is, its words are swapped and within each word, the bytes are
+    swapped.
+
+
+         File size contains the size on disk in bytes but the actual
+    size in memory may be smaller if DOS reaches the last cluster in
+    the FAT before this many bytes are read.
+
+
+
+                          FAT structure: Page 10
+
+                                The Disk Doctor
+
+
+         FILE ALLOCATION TABLE STRUCTURE
+
+              Files are allocated in clusters, not sectors. A cluster
+         is just two contiguous sectors, or 1K in length. The FAT is a
+         record of the clusters associated with a particular file; the
+         FAT is a one-to-one correspondence with the disk after the
+         first two entries; each subsequent entry refers to a cluster
+         of the same location on the disk. The FAT and directory size
+         is the same on single and double sided floppies.
+
+
+              On floppies, each 12 bits in the FAT records a cluster
+         belong to a particular file - or every 1.5 bytes. 12 bits
+         means an entry can range from zero to 4096 ($FFF). On the
+         hard disk, each is 16 bits, or a (byte-swapped) integer
+         (which allows a range to 65535 or $FFFF).
+
+
+              If an entry is zero, then the cluster is unused and
+         available. If 4081 to 4087 ($FF1 to $FF7), then the cluster
+         is unuseable due to a formatting error (usually a bad
+         sector). If the entry contains 4088 to 4095 ($FF8 to $FFF),
+         then the cluster contains the end of a file. For a hard disk,
+         these values are increased by 327667 or $F0000). Any other
+         value means the cluster is part of a file and the number is
+         equal to the NEXT cluster belong to the file unless it's
+         recorded as the last cluster.
+
+
+              The first cluster is recorded in the directory. TOS
+         reads that cluster into memory then goes to the FAT and reads
+         the number in that entry. The number here is the NEXT cluster
+         to read. This is also read and then TOS goes to the FAT entry
+         corresponding to that cluster and looks for the NEXT cluster
+         to read and so on until the FAT record says that this is the
+         last cluster ($FF8 to $FFF) when it stops reading. each entry
+         is a link to the next cluster in a file.
+
+
+              The first two entries in the FAT (entries 0 and 1: three
+         bytes; 1.5 bytes per entry, remember) record the disk format
+         rather than refer to a particular cluster; byte one has
+         either 247 ($F7) for single and double-sided floppies. The
+         next two bytes are 255 ($FF). These are meant to point to the
+         end of the directory but don't and are unused.
+
+
+              The first cluster available on the disk is numbered two.
+         This refers to sectors 18 and 19. The method of determining
+         the sector is to read the entry number, subtract 2 (the first
+         cluster is actually numbered 2), multiply by two (sectors per
+         cluster) and add 18 (the first sector for data is 18).
+
+
+
+                             FAT Structure: Page 11
+
+
+
+
+                                The Disk Doctor
+
+
+              This method allows TOS to allocate clusters around the
+         disk according to availability of space. It also means that
+         the smallest size of a file is 1K. To trace a file through
+         its links on the FAT, the Disk Doctor has a simple command
+         from the pull-down repair menu. The disk information feature
+         will also give you the starting sector of a file and the
+         number of bytes in length.
+
+
+         The FAT and the directory are both read into memory at a
+         location specified by the address at byte $2A (42) and is
+         kept in memory until the disk is changed and a new directory
+         read. This is why when you recover a deleted file, it doesn't
+         appear in the directory; the directory in memory must first
+         be update (done by closing any currently open file or disk,
+         then reading a new file or disk in another drive).
+
+
+                             BOOT sektor: Page 12
+
+
+                                The Disk Doctor
+
+
+         The Boot Sector
+
+              This section contains information of a more technical
+         nature than most users need. It is included for information
+         only.
+
+
+              The first sector (#0) on an ST disk is the boot 'track'.
+         It tells the ST several necessary things about the nature of
+         the disk and whether or not the boot program can be loaded
+         from the disk or code must be found elsewhere.
+
+
+              First, an executable boot sector must 'word-checksum' to
+         $1234 (4660). If the checksum is correct, the system does a
+         JSR to the first byte of the buffer where the boot code was
+         loaded. Since the buffer location is variable, code in the
+         boot sector must be relative, not location-dependant.
+
+
+              The boot sector is normally written down when a disk is
+         formatted or an entire disk is copied onto another. The boot
+         sector includes a 'BIOS Parameter Block' (BPB) which contains
+         essential information concerning the disk and is structured
+         like this:
+
+
+         Byte Label  Meaning                         Values
+                                                     boot/ss/ds
+
+         $0   BRA.S  branch to boot code             60 38/00 00
+         $2   ....   reserved bytes for OEM code     ....
+         $8   SERIAL 24 bit serial number            ....
+         $B   BPS    # of bytes per sector, LSB/MSB  00 02
+         $D   SPC    # of sectors/cluster (2)        02
+         $E   RES    # of reserved sectors, LSB/MSB  01 00
+         $10  NFATS  # of FATs (2)                   02
+         $11  NDIRS  # of directory entries, LSB/MSB 70 00
+         $13  NSECTS # of sectors on media, LSB/MSB  D0 02/D0 02/A0 05
+         $15  MEDIA  description byte of media       F8/F8/F9
+         $16  SPF    # of sectors/FAT, LSB/MSB       05 00
+         $18  SPT    # of sectors per track, LSB/MSB 09 00
+         $1A  NSIDES # of sides on media, LSB/MSB    01 00/01 00/02 00
+         $1C  NHID   # of hidden sectors, LSB/MSB    00
+         $1E  ....   boot code if any                ....
+
+              The values described here refer to typical values found
+         on a TOS boot disk, a single-sided and a double sided
+         non-boot disk. If only one value appears, it is the same on
+         all three, if two values appear, then ss and ds are the
+         same.
+
+
+                              Boot sector: Page 13
+
+
+                                The Disk Doctor
+
+
+              TOS doesn't use the media byte although other file
+         systems might. It also ignores the number of hidden sectors
+         on floppies. The OEM bytes are used on a boot disk and may be
+         on other company disks but are not used on a generic non-boot
+         disk. The serial number is written at format time and is
+         meant to be unique so that TOS can tell if a disk has been
+         swapped.
+
+
+         For some tools to be able to manipulate the loader, the OEM
+         bytes must be $4C 6F 61 64 65 72 ('Loader' in ASCII). The
+         final two bytes (one word) of the boot sector are reserved
+         for the 'evening out' value which allows the checksum to be
+         corrected accordingly.
+
+              The boot loader also contains specific information as
+         well as code:
+
+
+         Byte  Label    Meaning
+         $1E   EXECFLG  copied to _cmdload
+         $20   LDMODE   load mode
+         $22   SSECT    sector start
+         $24   SCETCNT  # of sectors to load
+         $26   LDADDR   load address
+         $2A   FATBUF   FAT address
+         $2E   FNAME    file name to load if LDMODE is 0
+         $39   ....     reserved
+         $3A   BOOTIT   boot code
+
+              If LDMODE is zero, then the filename in FNAME is
+         searched for and loaded. If non-zero, then the number of
+         sectors in SECTCNT is loaded, beginning with SSECT. FATBUF
+         points to the location in memory where the FAT and directory
+         is placed. FNAME consists of eight characters and a three
+         character extension.
+
+
+              To see an example of this, read the first sector on any
+         TOS boot disk. The ST boot loader can load an 'image file'
+         from any disk regardless of where it appears in the directory
+         or whether the sectors are stored contiguously or not. The
+         image file contains no header or relocation information in
+         it.
+
+
+                              Boot sector: Page 14
+
+
