@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2018 Lisias T <support@lisias.net>
+ * Copyright (C) 2009-2013 Matthias Treydte <mt@waldheinz.de>
+ * 				 2018 Lisias T <support@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,15 +17,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-package net.lisias.fs.disk;
-
-import java.io.IOException;
+package net.lisias.fs.disk.msx;
 
 import de.waldheinz.fs.BlockDevice;
 import de.waldheinz.fs.fat.FatType;
-import net.lisias.fs.disk.pc.FloppyFormatter;
-import de.waldheinz.fs.fat.BootSector;
-import de.waldheinz.fs.fat.FatFileSystem;
+
+import java.io.IOException;
 
 /**
  * Allows to create FAT file systems on {@link BlockDevice}s which follow the
@@ -43,33 +41,31 @@ import de.waldheinz.fs.fat.FatFileSystem;
  *
  * @author Matthias Treydte &lt;matthias.treydte at meetwise.com&gt;
  */
-public abstract class SuperFloppyFormatter {
-	public enum eSystem {
-		atari,
-		msx,
-		pc;
+public final class FloppyFormatter extends net.lisias.fs.disk.pc.FloppyFormatter {
+
+    public FloppyFormatter(final BlockDevice device) throws IOException {
+		super(device);
 	}
-	
-    /**
-     * Retruns a {@code SuperFloppyFormatter} instance suitable for formatting
-     * the specified device.
-     *
-     * @param dev the device that should be formatted
-     * @return the formatter for the device
-     * @throws IOException on error creating the formatter
-     */
-    public static SuperFloppyFormatter get(final eSystem system, final BlockDevice dev) throws IOException {
-        switch(system) {
-        	case atari: throw new IOException("Not implemented yet!");
-        	case msx: return new net.lisias.fs.disk.msx.FloppyFormatter(dev);
-        	case pc: return new net.lisias.fs.disk.pc.FloppyFormatter(dev);
-        }
-    	throw new IOException("Invalid system!");
+
+	protected FatType fatTypeFromDevice() throws IOException {
+    	final FatType result = super.fatTypeFromDevice();
+        if (FatType.FAT32 == result) throw new IOException("Not supported");
+        return result;
     }
+    
+    @Override
+    public net.lisias.fs.disk.pc.FloppyFormatter setFatType(final FatType fatType)
+            throws IOException, IllegalArgumentException {
+        
+        if (null == fatType) throw new NullPointerException();
+        if (FatType.FAT32 == fatType) throw new IOException("Not supported");
 
-	public abstract SuperFloppyFormatter setFatType(final FatType fatType) throws IOException, IllegalArgumentException;
-	public abstract SuperFloppyFormatter setVolumeLabel(final String label);
-	public abstract FatFileSystem format() throws IOException;
-
-	protected abstract void initBootSector(final BootSector bs) throws IOException;
+        return super.setFatType(fatType);
+    }
+    
+    @Override
+    protected int defaultSectorsPerCluster(FatType fatType) throws IOException {
+    	if (FatType.FAT32 == fatType) throw new IOException("Not supported");
+    	return super.defaultSectorsPerCluster(fatType);
+    }
 }
