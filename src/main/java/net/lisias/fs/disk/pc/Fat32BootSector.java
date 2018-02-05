@@ -22,81 +22,82 @@ package net.lisias.fs.disk.pc;
 import de.waldheinz.fs.BlockDevice;
 import de.waldheinz.fs.fat.BootSector;
 import de.waldheinz.fs.fat.FatType;
+import de.waldheinz.fs.fat.BootSector.OFFSET;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /**
  * Contains the FAT32 specific parts of the boot sector.
  *
  * @author Matthias Treydte &lt;matthias.treydte at meetwise.com&gt;
  */
-final class Fat32BootSector extends BootSector {
+public final class Fat32BootSector extends BootSector {
 
-    /**
-     * The offset to the entry specifying the first cluster of the FAT32
-     * root directory.
-     */
-    public static final int ROOT_DIR_FIRST_CLUSTER_OFFSET = 0x2c;
+	public enum OFFSET_EXT implements BootSector.Offset {
+		TOTAL_SECTORS_MEDIA(0x20),		// dword, LSB...MSB
+		NUMBER_SECTORS_FAT(0x24),		// dword, LSB...MSB 
+		ROOT_DIR_FIRST_CLUSTER(0x2c),	// ???
+		VERSION(0x2a),					// ???
+		FS_INFO_SECTOR(0x30),			// word LSB,MSB
+		BOOT_SECTOR_COPY(0x32),			// ???
+		EXTENDED_BOOT_SIGNATURE(0x42),	// ???
+		FILE_SYSTEM_TYPE(0x52),			// ???
+		;
+			
+		private final byte o;
 
-    public static final int TOTAL_SECTORS_32_OFFSET = 32;
+		OFFSET_EXT(final int value) {
+			this.o = (byte)value;
+		}
 
-    /**
-     * The offset to the 4 bytes specifying the sectors per FAT value.
-     */
-    public static final int SECTORS_PER_FAT_OFFSET = 0x24;
-
-    /**
-     * Offset to the file system type label.
-     */
-    public static final int FILE_SYSTEM_TYPE_OFFSET = 0x52;
-    
-    public static final int VERSION_OFFSET = 0x2a;
+		@Override
+		public int offset() {
+			return this.o;
+		}
+	}
+  
     public static final int VERSION = 0;
-
-    public static final int FS_INFO_SECTOR_OFFSET = 0x30;
-    public static final int BOOT_SECTOR_COPY_OFFSET = 0x32;
-    public static final int EXTENDED_BOOT_SIGNATURE_OFFSET = 0x42;
     
     /*
      * TODO: make this constructor private
      */
     public Fat32BootSector(BlockDevice device) throws IOException {
         super(device);
-        
-        final ByteBuffer bb = ByteBuffer.allocate(512);
-        bb.order(ByteOrder.LITTLE_ENDIAN);
-        device.read(0, bb);
+    }
+    
+    @Override
+    protected void checkDisk() throws IOException {
+        final ByteBuffer bb = this.buffer;
         
         if ((bb.get(510) & 0xff) != 0x55 || (bb.get(511) & 0xff) != 0xaa) 
         	throw new IOException("missing boot sector signature");
                 
-        final byte sectorsPerCluster = bb.get(SECTORS_PER_CLUSTER_OFFSET);
+        final byte sectorsPerCluster = bb.get(OFFSET.SECTORS_PER_CLUSTER.offset());
 
         if (sectorsPerCluster <= 0) throw new IOException("suspicious sectors per cluster count " + sectorsPerCluster);
                 
-        final int rootDirEntries = bb.getShort(Fat16BootSector.ROOT_DIR_ENTRIES_OFFSET);
-        final int rootDirSectors = ((rootDirEntries * 32) + (device.getSectorSize() - 1)) / device.getSectorSize();
+        final int rootDirEntries = bb.getShort(OFFSET.ROOT_DIR_ENTRIES.offset());
+        final int rootDirSectors = ((rootDirEntries * 32) + (this.getSectorSize() - 1)) / this.getSectorSize();
 
-        final long total16 = (bb.getShort(Fat16BootSector.TOTAL_SECTORS_16_OFFSET) & 0xffff);
+        final long total16 = (bb.getShort(OFFSET.TOTAL_SECTORS_MEDIA.offset()) & 0xffff);
         if (0 != total16)
         	throw new IOException("This is a FAT16!");
         
-        final long totalSectors = bb.getInt(TOTAL_SECTORS_32_OFFSET) & 0xffffffffl;
+        final long totalSectors = bb.getInt(OFFSET_EXT.TOTAL_SECTORS_MEDIA.offset()) & 0xffffffffl;
         if (0 == totalSectors)
         	throw new IOException("Total sectors is zero. Not a FAT32!");
         
-        final int fatSz16 = bb.getShort(Fat16BootSector.SECTORS_PER_FAT_OFFSET)  & 0xffff;
+        final int fatSz16 = bb.getShort(OFFSET.NUMBER_SECTORS_FAT.offset())  & 0xffff;
         if (0 != fatSz16)
         	throw new IOException("This is a FAT16!");
         
-        final long fatSz = bb.getInt(Fat32BootSector.SECTORS_PER_FAT_OFFSET) & 0xffffffffl;
+        final long fatSz = bb.getInt(OFFSET_EXT.NUMBER_SECTORS_FAT.offset()) & 0xffffffffl;
         if (0 == fatSz)
         	throw new IOException("FAT size is zero. Not a FAT32!");
                 
-        final int reservedSectors = bb.getShort(RESERVED_SECTORS_OFFSET);
-        final int fatCount = bb.get(FAT_COUNT_OFFSET);
+        final int reservedSectors = bb.getShort(OFFSET.NUMBER_RESERVED_SECTORS.offset());
+        final int fatCount = bb.get(OFFSET.NUMBER_OF_FATS.offset());
         final long dataSectors = totalSectors - (reservedSectors + (fatCount * fatSz) + rootDirSectors);
                 
         final long clusterCount = dataSectors / sectorsPerCluster;
@@ -106,8 +107,15 @@ final class Fat32BootSector extends BootSector {
     public void init() throws IOException {
         super.init();
 
-        set16(VERSION_OFFSET, VERSION);
+    	/* magic bytes needed by some windows versions to recognize a boot
+         * sector. these are x86 jump instructions which lead into
+         * nirvana when executed, but we're currently unable to produce really
+         * bootable images anyway. So... */
+        set8(0x00, 0xeb);
+        set8(0x01, 0x3c);
+        set8(0x02, 0x90);
 
+        set16(OFFSET_EXT.VERSION, VERSION);
         setBootSectorCopySector(6); /* as suggested by M$ */
     }
 
@@ -118,7 +126,7 @@ final class Fat32BootSector extends BootSector {
      */
     @Override
     public long getRootDirFirstCluster() {
-        return get32(ROOT_DIR_FIRST_CLUSTER_OFFSET);
+        return get32(OFFSET_EXT.ROOT_DIR_FIRST_CLUSTER);
     }
 
     /**
@@ -130,7 +138,7 @@ final class Fat32BootSector extends BootSector {
     public void setRootDirFirstCluster(final long value) {
         if (getRootDirFirstCluster() == value) return;
         
-        set32(ROOT_DIR_FIRST_CLUSTER_OFFSET, value);
+        set32(OFFSET_EXT.ROOT_DIR_FIRST_CLUSTER, value);
     }
 
     /**
@@ -143,7 +151,7 @@ final class Fat32BootSector extends BootSector {
         if (sectNr < 0) throw new IllegalArgumentException(
                 "boot sector copy sector must be >= 0");
         
-        set16(BOOT_SECTOR_COPY_OFFSET, sectNr);
+        set16(OFFSET_EXT.BOOT_SECTOR_COPY, sectNr);
     }
     
     /**
@@ -153,7 +161,7 @@ final class Fat32BootSector extends BootSector {
      * @return the sector number of the boot sector copy
      */
     public int getBootSectorCopySector() {
-        return get16(BOOT_SECTOR_COPY_OFFSET);
+        return get16(OFFSET_EXT.BOOT_SECTOR_COPY);
     }
 
     /**
@@ -174,25 +182,25 @@ final class Fat32BootSector extends BootSector {
 
     @Override
     public int getFsInfoSectorNr() {
-        return get16(FS_INFO_SECTOR_OFFSET);
+        return get16(OFFSET_EXT.FS_INFO_SECTOR);
     }
 
     public void setFsInfoSectorNr(int offset) {
         if (getFsInfoSectorNr() == offset) return;
 
-        set16(FS_INFO_SECTOR_OFFSET, offset);
+        set16(OFFSET_EXT.FS_INFO_SECTOR, offset);
     }
     
     @Override
     public void setSectorsPerFat(long v) {
         if (getSectorsPerFat() == v) return;
         
-        set32(SECTORS_PER_FAT_OFFSET, v);
+        set32(OFFSET_EXT.NUMBER_SECTORS_FAT, v);
     }
     
     @Override
     public long getSectorsPerFat() {
-        return get32(SECTORS_PER_FAT_OFFSET);
+        return get32(OFFSET_EXT.NUMBER_SECTORS_FAT);
     }
 
     @Override
@@ -246,13 +254,13 @@ final class Fat32BootSector extends BootSector {
     }
 
     @Override
-    public int getFileSystemTypeLabelOffset() {
-        return FILE_SYSTEM_TYPE_OFFSET;
+    public BootSector.Offset getFileSystemTypeLabelOffset() {
+        return OFFSET_EXT.NUMBER_SECTORS_FAT;
     }
 
     @Override
-    public int getExtendedBootSignatureOffset() {
-        return EXTENDED_BOOT_SIGNATURE_OFFSET;
+    public BootSector.Offset getExtendedBootSignatureOffset() {
+        return OFFSET_EXT.FILE_SYSTEM_TYPE;
     }
     
     /**
@@ -261,7 +269,7 @@ final class Fat32BootSector extends BootSector {
      * @return int
      */
     protected int getNrLogicalSectors() {
-        return get16(TOTAL_SECTORS_32_OFFSET);
+        return get16(OFFSET_EXT.NUMBER_SECTORS_FAT);
     }
     
     /**
@@ -272,15 +280,15 @@ final class Fat32BootSector extends BootSector {
     protected void setNrLogicalSectors(int v) {
         if (v == getNrLogicalSectors()) return;
         
-        set16(TOTAL_SECTORS_32_OFFSET, v);
+        set16(OFFSET_EXT.NUMBER_SECTORS_FAT, v);
     }
     
     protected void setNrTotalSectors(long v) {
-        set32(TOTAL_SECTORS_32_OFFSET, v);
+        set32(OFFSET_EXT.NUMBER_SECTORS_FAT, v);
     }
     
     protected long getNrTotalSectors() {
-        return get32(TOTAL_SECTORS_32_OFFSET);
+        return get32(OFFSET_EXT.NUMBER_SECTORS_FAT);
     }
 
 	@Override

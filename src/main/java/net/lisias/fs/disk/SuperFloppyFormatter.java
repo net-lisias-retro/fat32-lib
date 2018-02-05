@@ -23,6 +23,7 @@ import java.io.IOException;
 import de.waldheinz.fs.BlockDevice;
 import de.waldheinz.fs.fat.FatType;
 import net.lisias.fs.disk.pc.FloppyFormatter;
+import de.waldheinz.fs.fat.BootSector;
 import de.waldheinz.fs.fat.FatFileSystem;
 
 /**
@@ -69,4 +70,6 @@ public abstract class SuperFloppyFormatter {
 	public abstract SuperFloppyFormatter setFatType(final FatType fatType) throws IOException, IllegalArgumentException;
 	public abstract SuperFloppyFormatter setVolumeLabel(final String label);
 	public abstract FatFileSystem format() throws IOException;
+
+	protected abstract void initBootSector(final BootSector bs) throws IOException;
 }

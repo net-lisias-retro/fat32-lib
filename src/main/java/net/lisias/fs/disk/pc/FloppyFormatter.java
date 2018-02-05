@@ -51,7 +51,7 @@ import java.util.Random;
  *
  * @author Matthias Treydte &lt;matthias.treydte at meetwise.com&gt;
  */
-public final class FloppyFormatter extends SuperFloppyFormatter {
+public class FloppyFormatter extends SuperFloppyFormatter {
 
     /**
      * The media descriptor used (hard disk).
@@ -162,9 +162,8 @@ public final class FloppyFormatter extends SuperFloppyFormatter {
         return label;
     }
 
-    private void initBootSector(BootSector bs)
-            throws IOException {
-        
+    @Override
+    protected void initBootSector(BootSector bs) throws IOException {
         bs.init();
         bs.setFileSystemTypeLabel(fatType.getLabel());
         bs.setNrReservedSectors(reservedSectors);
@@ -287,7 +286,7 @@ public final class FloppyFormatter extends SuperFloppyFormatter {
      * @return the suggested FAT type
      * @throws IOException on error determining the device's size
      */
-    private FatType fatTypeFromDevice() throws IOException {
+    protected FatType fatTypeFromDevice() throws IOException {
         final long sizeInMb = device.getSize() / (1024 * 1024);
         
         if (sizeInMb < 5) {
@@ -367,7 +366,7 @@ public final class FloppyFormatter extends SuperFloppyFormatter {
                 sectors >   532480 ?  8 : 1;
     }
     
-    private int sectorsPerCluster16() throws IOException {
+    protected int sectorsPerCluster16() throws IOException {
         if (this.reservedSectors != 1) throw new IllegalStateException(
                 "number of reserved sectors must be 1");
 
@@ -390,7 +389,7 @@ public final class FloppyFormatter extends SuperFloppyFormatter {
                 sectors >   32680 ?  4 : 2;
     }
     
-    private int defaultSectorsPerCluster(FatType fatType) throws IOException {
+    protected int defaultSectorsPerCluster(FatType fatType) throws IOException {
         switch (fatType) {
             case FAT12:
                 return sectorsPerCluster12();
@@ -406,7 +405,7 @@ public final class FloppyFormatter extends SuperFloppyFormatter {
         }
     }
 
-    private int sectorsPerCluster12() throws IOException {
+    protected int sectorsPerCluster12() throws IOException {
         int result = 1;
         
         final long sectors = device.getSize() / device.getSectorSize();

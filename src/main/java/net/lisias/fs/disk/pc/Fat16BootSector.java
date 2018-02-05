@@ -25,16 +25,33 @@ import de.waldheinz.fs.fat.FatType;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /**
  * The boot sector layout as used by the FAT12 / FAT16 variants.
  *
  * @author Matthias Treydte &lt;matthias.treydte at meetwise.com&gt;
  */
-final class Fat16BootSector extends BootSector {
+public class Fat16BootSector extends BootSector {
 
-    /**
+	public enum OFFSET_EXT implements BootSector.Offset {
+		VOLUME_LABEL(0x2b),				// (MAX_VOLUME_LABEL_LENGTH) chars
+		EXTENDED_BOOT_SIGNATURE(0x26),	// ???
+		FILE_SYSTEM_TYPE(0x36),			// ???
+		;
+			
+		private final byte o;
+
+		OFFSET_EXT(final int value) {
+			this.o = (byte)value;
+		}
+
+		@Override
+		public int offset() {
+			return this.o;
+		}
+	}
+
+	/**
      * The default number of entries for the root directory.
      * 
      * @see #getRootDirEntryCount()
@@ -58,74 +75,46 @@ final class Fat16BootSector extends BootSector {
     public static final int MAX_FAT12_CLUSTERS = 4084;
 
     public static final int MAX_FAT16_CLUSTERS = 65524;
-
-    public static final int TOTAL_SECTORS_16_OFFSET = 19;
-
-    /**
-     * The offset to the sectors per FAT value.
-     */
-    public static final int SECTORS_PER_FAT_OFFSET = 0x16;
-
-    /**
-     * The offset to the root directory entry count value.
-     *
-     * @see #getRootDirEntryCount()
-     * @see #setRootDirEntryCount(int) 
-     */
-    public static final int ROOT_DIR_ENTRIES_OFFSET = 0x11;
-
-    /**
-     * The offset to the first byte of the volume label.
-     */
-    public static final int VOLUME_LABEL_OFFSET = 0x2b;
-    
-    /**
-     * Offset to the FAT file system type string.
-     *
-     * @see #getFileSystemType() 
-     */
-    public static final int FILE_SYSTEM_TYPE_OFFSET = 0x36;
     
     /**
      * The maximum length of the volume label.
      */
     public static final int MAX_VOLUME_LABEL_LENGTH = 11;
     
-    public static final int EXTENDED_BOOT_SIGNATURE_OFFSET = 0x26;
-
     /**
      * Creates a new {@code Fat16BootSector} for the specified device.
      *
      * @param device the {@code BlockDevice} holding the boot sector
      * @throws IOException 
      */
-    public Fat16BootSector(BlockDevice device) throws IOException {
+    public Fat16BootSector(final BlockDevice device) throws IOException {
         super(device);
-        
-        final ByteBuffer bb = ByteBuffer.allocate(SIZE);
-        bb.order(ByteOrder.LITTLE_ENDIAN);
-        device.read(0, bb);
+    }
+    
+    @Override
+    protected void checkDisk() throws IOException {
+        final ByteBuffer bb = this.buffer;
         
         if ((bb.get(510) & 0xff) != 0x55 || (bb.get(511) & 0xff) != 0xaa) 
         	throw new IOException("missing boot sector signature");
                 
-        final byte sectorsPerCluster = bb.get(SECTORS_PER_CLUSTER_OFFSET);
+        final byte sectorsPerCluster = bb.get(OFFSET.SECTORS_PER_CLUSTER.offset());
 
         if (sectorsPerCluster <= 0) throw new IOException("suspicious sectors per cluster count " + sectorsPerCluster);
                 
-        final int rootDirEntries = bb.getShort(Fat16BootSector.ROOT_DIR_ENTRIES_OFFSET);
-        final int rootDirSectors = ((rootDirEntries * 32) + (device.getSectorSize() - 1)) / device.getSectorSize();
+        final int rootDirEntries = bb.getShort(OFFSET.ROOT_DIR_ENTRIES.offset());
+        final int rootDirSectors = ((rootDirEntries * 32) + (this.getSectorSize() - 1)) / this.getSectorSize();
 
-        final long totalSectors = (bb.getShort(TOTAL_SECTORS_16_OFFSET) & 0xffff);
+        final long totalSectors = (bb.getShort(OFFSET.TOTAL_SECTORS_MEDIA.offset()) & 0xffff);
         if (0 == totalSectors)
         	throw new IOException("Total sectors is zero. Not a FAT16!");
         
-        final int fatSz = bb.getShort(SECTORS_PER_FAT_OFFSET)  & 0xffff;
+        final int fatSz = bb.getShort(OFFSET.NUMBER_SECTORS_FAT.offset())  & 0xffff;
         if (0 == fatSz)
         	throw new IOException("FAT size is zero. Not a FAT16!");
                 
-        final int reservedSectors = bb.getShort(RESERVED_SECTORS_OFFSET);
-        final int fatCount = bb.get(FAT_COUNT_OFFSET);
+        final int reservedSectors = bb.getShort(OFFSET.NUMBER_RESERVED_SECTORS.offset());
+        final int fatCount = bb.get(OFFSET.NUMBER_OF_FATS.offset());
         final long dataSectors = totalSectors - (reservedSectors + (fatCount * fatSz) + rootDirSectors);
                 
         final long clusterCount = dataSectors / sectorsPerCluster;
@@ -133,6 +122,22 @@ final class Fat16BootSector extends BootSector {
         	throw new IOException("Cluster count too big. Not a FAT16!");
     }
     
+    @Override
+    public void init() throws IOException {
+    	super.init();
+    	
+    	/* magic bytes needed by some windows versions to recognize a boot
+         * sector. these are x86 jump instructions which lead into
+         * nirvana when executed, but we're currently unable to produce really
+         * bootable images anyway. So... */
+        set8(0x00, 0xeb);
+        set8(0x01, 0x3c);
+        set8(0x02, 0x90);
+
+        setRootDirEntryCount(DEFAULT_ROOT_DIR_ENTRY_COUNT);
+        setVolumeLabel(DEFAULT_VOLUME_LABEL);
+    }
+
     /**
      * Returns the volume label that is stored in this boot sector.
      *
@@ -143,7 +148,7 @@ final class Fat16BootSector extends BootSector {
         final StringBuilder sb = new StringBuilder();
 
         for (int i=0; i < MAX_VOLUME_LABEL_LENGTH; i++) {
-            final char c = (char) get8(VOLUME_LABEL_OFFSET + i);
+            final char c = (char) get8(OFFSET_EXT.VOLUME_LABEL.offset() + i);
 
             if (c != 0) {
                 sb.append(c);
@@ -168,7 +173,7 @@ final class Fat16BootSector extends BootSector {
             throw new IllegalArgumentException("volume label too long");
 
         for (int i = 0; i < MAX_VOLUME_LABEL_LENGTH; i++) {
-            set8(VOLUME_LABEL_OFFSET + i,
+            set8(OFFSET_EXT.VOLUME_LABEL.offset() + i,
                     i < label.length() ? label.charAt(i) : 0);
         }
     }
@@ -180,7 +185,7 @@ final class Fat16BootSector extends BootSector {
      */
     @Override
     public long getSectorsPerFat() {
-        return get16(SECTORS_PER_FAT_OFFSET);
+        return get16(OFFSET.NUMBER_SECTORS_FAT);
     }
 
     /**
@@ -191,23 +196,20 @@ final class Fat16BootSector extends BootSector {
     @Override
     public void setSectorsPerFat(long v) {
         if (v == getSectorsPerFat()) return;
-        if (v > 0x7FFF) throw new IllegalArgumentException(
-                "too many sectors for a FAT12/16");
+        if (v > 0x7FFF)
+        	throw new IllegalArgumentException("too many sectors for a FAT12/16");
         
-        set16(SECTORS_PER_FAT_OFFSET, (int)v);
+        set16(OFFSET.NUMBER_SECTORS_FAT, (int)v);
     }
 
     @Override
     public FatType getFatType() {
-        final long rootDirSectors = ((getRootDirEntryCount() * 32) +
-                (getBytesPerSector() - 1)) / getBytesPerSector();
-        final long dataSectors = getSectorCount() -
-                (getNrReservedSectors() + (getNrFats() * getSectorsPerFat()) +
-                rootDirSectors);
+        final long rootDirSectors = ((getRootDirEntryCount() * 32) + (getBytesPerSector() - 1)) / getBytesPerSector();
+        final long dataSectors = getSectorCount() - (getNrReservedSectors() + (getNrFats() * getSectorsPerFat()) + rootDirSectors);
         final long clusterCount = dataSectors / getSectorsPerCluster();
         
-        if (clusterCount > MAX_FAT16_CLUSTERS) throw new IllegalStateException(
-                "too many clusters for FAT12/16: " + clusterCount);
+        if (clusterCount > MAX_FAT16_CLUSTERS) 
+        	throw new IllegalStateException("too many clusters for FAT12/16: " + clusterCount);
         
         return clusterCount > MAX_FAT12_CLUSTERS ?
             FatType.FAT16 : FatType.FAT12;
@@ -237,7 +239,7 @@ final class Fat16BootSector extends BootSector {
      */
     @Override
     public int getRootDirEntryCount() {
-        return get16(ROOT_DIR_ENTRIES_OFFSET);
+        return get16(OFFSET.ROOT_DIR_ENTRIES);
     }
     
     /**
@@ -250,25 +252,17 @@ final class Fat16BootSector extends BootSector {
         if (v < 0) throw new IllegalArgumentException();
         if (v == getRootDirEntryCount()) return;
         
-        set16(ROOT_DIR_ENTRIES_OFFSET, v);
+        set16(OFFSET.ROOT_DIR_ENTRIES, v);
     }
     
     @Override
-    public void init() throws IOException {
-        super.init();
-        
-        setRootDirEntryCount(DEFAULT_ROOT_DIR_ENTRY_COUNT);
-        setVolumeLabel(DEFAULT_VOLUME_LABEL);
+    public BootSector.Offset getFileSystemTypeLabelOffset() {
+        return OFFSET_EXT.FILE_SYSTEM_TYPE;
     }
 
     @Override
-    public int getFileSystemTypeLabelOffset() {
-        return FILE_SYSTEM_TYPE_OFFSET;
-    }
-
-    @Override
-    public int getExtendedBootSignatureOffset() {
-        return EXTENDED_BOOT_SIGNATURE_OFFSET;
+    public BootSector.Offset getExtendedBootSignatureOffset() {
+        return OFFSET_EXT.EXTENDED_BOOT_SIGNATURE;
     }
     
     /**
@@ -277,7 +271,7 @@ final class Fat16BootSector extends BootSector {
      * @return int
      */
     protected int getNrLogicalSectors() {
-        return get16(TOTAL_SECTORS_16_OFFSET);
+        return get16(OFFSET.TOTAL_SECTORS_MEDIA);
     }
     
     /**
@@ -288,15 +282,15 @@ final class Fat16BootSector extends BootSector {
     protected void setNrLogicalSectors(int v) {
         if (v == getNrLogicalSectors()) return;
         
-        set16(TOTAL_SECTORS_16_OFFSET, v);
+        set16(OFFSET.TOTAL_SECTORS_MEDIA, v);
     }
     
     protected void setNrTotalSectors(long v) {
-        set32(TOTAL_SECTORS_16_OFFSET, v);
+        set32(OFFSET.TOTAL_SECTORS_MEDIA, v);
     }
     
     protected long getNrTotalSectors() {
-        return get32(TOTAL_SECTORS_16_OFFSET);
+        return get32(OFFSET.TOTAL_SECTORS_MEDIA);
     }
 
 	@Override

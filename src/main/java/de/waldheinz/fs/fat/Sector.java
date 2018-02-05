@@ -29,7 +29,11 @@ import java.nio.ByteOrder;
  * @author Matthias Treydte &lt;waldheinz at gmail.com&gt;
  */
 class Sector {
-    private final BlockDevice device;
+    public interface Offset {
+    	int offset();
+	}
+
+	private final BlockDevice device;
     private final long offset;
 
     /**
@@ -86,29 +90,14 @@ class Sector {
         device.write(offset, buffer);
         this.dirty = false;
     }
-
-    protected int get16(int offset) {
-        return buffer.getShort(offset) & 0xffff;
-    }
-
-    protected long get32(int offset) {
-        return buffer.getInt(offset);
-    }
-    
-    protected int get8(int offset) {
+   
+    protected int get8(final int offset) {
         return buffer.get(offset) & 0xff;
     }
+    protected int get8(final Offset o) {
+        return this.get8(o.offset());
+    }
     
-    protected void set16(int offset, int value) {
-        buffer.putShort(offset, (short) (value & 0xffff));
-        dirty = true;
-    }
-
-    protected void set32(int offset, long value) {
-        buffer.putInt(offset, (int) (value & 0xffffffff));
-        dirty = true;
-    }
-
     protected void set8(int offset, int value) {
         if ((value & 0xff) != value) {
             throw new IllegalArgumentException(
@@ -118,7 +107,41 @@ class Sector {
         buffer.put(offset, (byte) (value & 0xff));
         dirty = true;
     }
-    
+    protected void set8(final Offset o, final int value) {
+    	this.set8(o.offset(), value);
+    }
+        
+    protected int get16(final int offset) {
+        return buffer.getShort(offset) & 0xffff;
+    }
+    protected int get16(final Offset o) {
+        return this.get16(o.offset());
+    }
+
+    protected void set16(final int offset, final int value) {
+        buffer.putShort(offset, (short) (value & 0xffff));
+        dirty = true;
+    }
+    protected void set16(final Offset o, final int value) {
+    	this.set16(o.offset(), value);
+    }
+
+    protected long get32(final int offset) {
+        return buffer.getInt(offset);
+    }
+    protected long get32(final Offset o) {
+        return this.get32(o.offset());
+    }
+
+    protected void set32(final int offset, final long value) {
+        buffer.putInt(offset, (int) (value & 0xffffffff));
+        dirty = true;
+    }
+    protected void set32(final Offset o, final long value) {
+    	this.set32(o.offset(), value);
+    }
+
+   
     /**
      * Returns the device offset to this {@code Sector}.
      *
@@ -128,7 +151,7 @@ class Sector {
         return this.offset;
     }
     
-    protected int getSize() {
+    protected int getSectorSize() {
     	return this.buffer.capacity();
     }
 }
