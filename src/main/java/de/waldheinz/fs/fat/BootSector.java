@@ -21,7 +21,6 @@
 package de.waldheinz.fs.fat;
 
 import de.waldheinz.fs.BlockDevice;
-import de.waldheinz.fs.fat.BootSector.OFFSET;
 
 import java.io.IOException;
 
@@ -35,7 +34,7 @@ import java.io.IOException;
 public abstract class BootSector extends Sector {
 
 	public enum OFFSET implements Sector.Offset {
-		BRANCH_INSTRUCTION(0x00),		// 3 bytes
+		BRANCH_S(0x00),					// 3 bytes
 		OEM_NAME(0x03),					// 8 chars
 		BYTES_PER_SECTOR(0x0B),			// word (LSB, MSB)
 		SECTORS_PER_CLUSTER(0x0D),		// byte
@@ -48,6 +47,7 @@ public abstract class BootSector extends Sector {
 		SECTORS_PER_TRACK(0x18),		// word (LSB, MSB)
 		NUMBER_OF_HEADS(0x1A),			// word (LSB, MSB)
 		NUMBER_HIDDEN_SECTORS(0x1C),	// word (LSB, MSB)
+		BOOT_SECTOR_SIGNATURE(0x1FE),	// word
 		;
 			
 		private final byte o;
@@ -61,6 +61,9 @@ public abstract class BootSector extends Sector {
 			return this.o;
 		}
 	}
+	
+	// Don't static this, so subclasses can override the value!
+	public final String OEM_NAME = "FAT32lib";
        
     /**
      * The length of the file system type string.
@@ -176,13 +179,13 @@ public abstract class BootSector extends Sector {
         setBytesPerSector(getDevice().getSectorSize());
         setSectorCount(getDevice().getSize() / getDevice().getSectorSize());
         set8(getExtendedBootSignatureOffset(), EXTENDED_BOOT_SIGNATURE);
+        setBytes(OFFSET.OEM_NAME, OEM_NAME.getBytes(), 8);
         
         /* the boot sector signature */
-        set8(0x1fe, 0x55);
-        set8(0x1ff, 0xaa);
+        set16(OFFSET.BOOT_SECTOR_SIGNATURE, 0xAA55);
     }
     
-    /**
+	/**
      * Returns the file system type label string.
      *
      * @return the file system type string

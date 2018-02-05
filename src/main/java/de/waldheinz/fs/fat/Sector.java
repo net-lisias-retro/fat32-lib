@@ -19,10 +19,13 @@
 
 package de.waldheinz.fs.fat;
 
-import de.waldheinz.fs.BlockDevice;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Random;
+
+import de.waldheinz.fs.BlockDevice;
 
 /**
  * 
@@ -32,7 +35,9 @@ class Sector {
     public interface Offset {
     	int offset();
 	}
-
+    
+    protected final static Random random = new Random();
+    
 	private final BlockDevice device;
     private final long offset;
 
@@ -98,13 +103,11 @@ class Sector {
         return this.get8(o.offset());
     }
     
-    protected void set8(int offset, int value) {
-        if ((value & 0xff) != value) {
-            throw new IllegalArgumentException(
-                    value + " too big to be stored in a single octet");
-        }
+    protected void set8(final int offset, final int value) {
+        final int v = (value & 0xff);
+    	if (v != value) throw new IllegalArgumentException(value + " too big to be stored in a single octet");
         
-        buffer.put(offset, (byte) (value & 0xff));
+        buffer.put(offset, (byte) v);
         dirty = true;
     }
     protected void set8(final Offset o, final int value) {
@@ -119,7 +122,9 @@ class Sector {
     }
 
     protected void set16(final int offset, final int value) {
-        buffer.putShort(offset, (short) (value & 0xffff));
+        final int v = (value & 0xffff);
+    	if (v != value)	throw new IllegalArgumentException(value + " too big to be stored in a single word");
+        buffer.putShort(offset, (short)v);
         dirty = true;
     }
     protected void set16(final Offset o, final int value) {
@@ -134,14 +139,39 @@ class Sector {
     }
 
     protected void set32(final int offset, final long value) {
-        buffer.putInt(offset, (int) (value & 0xffffffff));
+        final long v = (value & 0xffffffff);
+    	if (v != value) throw new IllegalArgumentException(value + " too big to be stored in a single octet");
+    	
+        buffer.putInt(offset, (int) v);
         dirty = true;
     }
     protected void set32(final Offset o, final long value) {
     	this.set32(o.offset(), value);
     }
 
-   
+    protected byte[] getBytes(final int offset, final int size) {
+    	final byte[] r = new byte[size];
+    	return buffer.get(r, offset, r.length).array();
+    }
+    protected byte[] getBytes(final Offset o, final int size) {
+    	return getBytes(o.offset(), size);
+    }
+
+    protected void setBytes(final int offset, final byte[] data, int size) {
+    	size = Math.min(data.length, size);
+    	if (offset + size > buffer.capacity()) throw new IllegalArgumentException("Data (location + size) exceeds the sector bounds.");
+    	buffer.put(data, offset, size);
+    }
+    protected void setBytes(final int offset, final byte[] data) {
+    	setBytes(offset, data, data.length);
+    }
+    protected void setBytes(final Offset o, final byte[] data, int size) {
+    	setBytes(o.offset(), data, size);
+    }
+    protected void setBytes(final Offset o, final byte[] data) {
+    	setBytes(o.offset(), data);
+    }
+
     /**
      * Returns the device offset to this {@code Sector}.
      *
