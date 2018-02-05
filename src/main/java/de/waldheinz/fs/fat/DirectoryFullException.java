@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2009-2013 Matthias Treydte <mt@waldheinz.de>
+ * 				 2018 Lisias T <support@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published

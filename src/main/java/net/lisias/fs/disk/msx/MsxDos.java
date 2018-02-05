@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2009-2013 Matthias Treydte <mt@waldheinz.de>
- * 				 2018 Lisias T <support@lisias.net>
+ * Copyright (C) 2018 Lisias T <support@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,9 +16,17 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-/**
- * Contains some utility classes that are useful independent of the file system
- * type.
- */
-package de.waldheinz.fs.util;
+package net.lisias.fs.disk.msx;
 
+import java.io.IOException;
+
+import de.waldheinz.fs.BlockDevice;
+import de.waldheinz.fs.FileSystem;
+
+public class MsxDos {
+
+    public static FileSystem read(final BlockDevice device, final boolean readOnly) throws IOException {
+    	throw new IOException("Not Implemented yet!");
+	}
+
+}

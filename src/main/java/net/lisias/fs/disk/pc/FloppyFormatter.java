@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2009-2013 Matthias Treydte <mt@waldheinz.de>
+ * 				 2018 Lisias T <support@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,10 +17,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-package de.waldheinz.fs.disk.pc;
+package net.lisias.fs.disk.pc;
 
 import de.waldheinz.fs.BlockDevice;
-import de.waldheinz.fs.disk.SuperFloppyFormatter;
 import de.waldheinz.fs.fat.AbstractDirectory;
 import de.waldheinz.fs.fat.BootSector;
 import de.waldheinz.fs.fat.ClusterChainDirectory;
@@ -29,6 +29,7 @@ import de.waldheinz.fs.fat.FatFileSystem;
 import de.waldheinz.fs.fat.FatLfnDirectory;
 import de.waldheinz.fs.fat.FatType;
 import de.waldheinz.fs.fat.FsInfoSector;
+import net.lisias.fs.disk.SuperFloppyFormatter;
 
 import java.io.IOException;
 import java.util.Random;

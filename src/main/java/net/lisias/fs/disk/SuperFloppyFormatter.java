@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013 Matthias Treydte <mt@waldheinz.de>
+ * Copyright (C) 2018 Lisias T <support@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,12 +16,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-package de.waldheinz.fs.disk;
+package net.lisias.fs.disk;
 
 import java.io.IOException;
 
 import de.waldheinz.fs.BlockDevice;
 import de.waldheinz.fs.fat.FatType;
+import net.lisias.fs.disk.pc.FloppyFormatter;
 import de.waldheinz.fs.fat.FatFileSystem;
 
 /**
@@ -60,7 +61,7 @@ public abstract class SuperFloppyFormatter {
         switch(system) {
         	case atari: throw new IOException("Not implemented yet!");
         	case msx: throw new IOException("Not implemented yet!");
-        	case pc: return new de.waldheinz.fs.disk.pc.FloppyFormatter(dev);
+        	case pc: return new net.lisias.fs.disk.pc.FloppyFormatter(dev);
         }
     	throw new IOException("Invalid system!");
     }
