@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003-2009 JNode.org
  *               2009-2013 Matthias Treydte <mt@waldheinz.de>
- * 				 2018 Lisias T <support@lisias.net>
+ * 				 2018-2022 Lisias T <me@lisias.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
